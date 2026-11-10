@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.vocat.service</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/jung/.vocat</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/jung/.vocat/bin/vocat</string>
+        <string>serve</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>VOCAT_ADDR</key>
+        <string>127.0.0.1:7575</string>
+        <key>VOCAT_DATABASE_PATH</key>
+        <string>/Users/jung/.vocat/data/vocat.db</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/jung/.vocat/logs/out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/jung/.vocat/logs/err.log</string>
+</dict>
+</plist>

@@ -1,9 +1,6 @@
-//go:build !linux
+//go:build !linux && !darwin
 
 package server
-
-// Host statistics are only meaningful on the Linux deployment target; on other
-// platforms every probe reports empty/zero and the dashboard renders "—".
 
 func probeHostStatic() hostStaticInfo { return hostStaticInfo{} }
 

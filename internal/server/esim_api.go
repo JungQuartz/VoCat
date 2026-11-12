@@ -583,6 +583,8 @@ func (s *Server) switchESIMProfile(ctx context.Context, configuredID, physicalID
 	if !policy.VoWiFiEnabled && canRestoreFlightImmediately && !policy.AirplaneEnabled {
 		if _, err := s.devices.SetFlight(ctx, physicalID, false); err != nil {
 			s.logger.Warn("profile switched but saved airplane state will require reconciliation", "device_id", configuredID, "iccid", iccid, "error", err)
+		} else {
+			s.schedulePreferredPLMN(physicalID, iccid)
 		}
 	}
 	return policy, nil

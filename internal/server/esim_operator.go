@@ -63,12 +63,23 @@ func (s *Server) schedulePreferredPLMN(configuredID, physicalID, iccid string) {
 			phone = snap.Phone.Number
 		}
 
-		s.notifyESIMSwitchResult(configuredID, iccid, carrierName, phone, plmn, operator, regStatus, signalStr, selectErr)
+		// 从 eUICC 获取该 ICCID 对应的卡片名称 / 备注名
+		cardName := ""
+		if info, err := s.devices.ESIMListProfiles(ctx, physicalID); err == nil {
+			for _, p := range info.Profiles {
+				if strings.EqualFold(strings.TrimSpace(p.ICCID), strings.TrimSpace(iccid)) {
+					cardName = firstNonEmpty(p.Nickname, p.Name, p.ServiceProvider)
+					break
+				}
+			}
+		}
+
+		s.notifyESIMSwitchResult(configuredID, iccid, firstNonEmpty(cardName, carrierName), phone, plmn, operator, regStatus, signalStr, selectErr)
 	}()
 }
 
 // notifyESIMSwitchResult 向所有已启用的通知渠道推送 eSIM 切卡与选网最终结果。
-func (s *Server) notifyESIMSwitchResult(configuredID, iccid, carrierName, phone, plmn, operator string, regStatus int, signalStr string, selectErr error) {
+func (s *Server) notifyESIMSwitchResult(configuredID, iccid, cardName, phone, plmn, operator string, regStatus int, signalStr string, selectErr error) {
 	ctx, cancel := context.WithTimeout(s.notificationDestinationContext(context.Background()), 15*time.Second)
 	defer cancel()
 
@@ -102,10 +113,13 @@ func (s *Server) notifyESIMSwitchResult(configuredID, iccid, carrierName, phone,
 			statusLine = "未驻网"
 		}
 	}
+	if cardName != "" {
+		title += " · " + cardName
+	}
 
 	cardDesc := iccid
-	if carrierName != "" {
-		cardDesc = carrierName + " (" + iccid + ")"
+	if cardName != "" {
+		cardDesc = cardName + " (" + iccid + ")"
 	}
 	roamDesc := firstNonEmpty(operator, "搜索中")
 	if plmn != "" {
@@ -115,7 +129,7 @@ func (s *Server) notifyESIMSwitchResult(configuredID, iccid, carrierName, phone,
 	lines := []string{
 		title,
 		"设备  " + deviceLabel,
-		"卡片  " + cardDesc,
+		"卡名  " + cardDesc,
 	}
 	if phone != "" {
 		lines = append(lines, "号码  "+phone)

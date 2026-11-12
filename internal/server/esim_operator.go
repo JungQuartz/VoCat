@@ -52,6 +52,7 @@ func (s *Server) schedulePreferredPLMN(configuredID, physicalID, iccid string) {
 		regStatus := 0
 		signalStr := "--"
 		carrierName := ""
+		phone := ""
 		if snap, err := s.devices.Refresh(ctx, physicalID); err == nil {
 			operator = snap.OperatorName
 			regStatus = snap.RegistrationStatus
@@ -59,20 +60,26 @@ func (s *Server) schedulePreferredPLMN(configuredID, physicalID, iccid string) {
 				signalStr = fmt.Sprintf("%d dBm", *snap.RSSIDBm)
 			}
 			carrierName = snap.SPN
+			phone = snap.Phone.Number
 		}
 
-		s.notifyESIMSwitchResult(configuredID, iccid, carrierName, plmn, operator, regStatus, signalStr, selectErr)
+		s.notifyESIMSwitchResult(configuredID, iccid, carrierName, phone, plmn, operator, regStatus, signalStr, selectErr)
 	}()
 }
 
 // notifyESIMSwitchResult 向所有已启用的通知渠道推送 eSIM 切卡与选网最终结果。
-func (s *Server) notifyESIMSwitchResult(configuredID, iccid, carrierName, plmn, operator string, regStatus int, signalStr string, selectErr error) {
+func (s *Server) notifyESIMSwitchResult(configuredID, iccid, carrierName, phone, plmn, operator string, regStatus int, signalStr string, selectErr error) {
 	ctx, cancel := context.WithTimeout(s.notificationDestinationContext(context.Background()), 15*time.Second)
 	defer cancel()
 
 	deviceLabel := configuredID
 	if configured, err := s.store.Device(ctx, configuredID); err == nil {
 		deviceLabel = firstNonEmpty(configured.Name, configured.ID)
+	}
+	if strings.TrimSpace(phone) == "" {
+		if policy, err := s.store.CardPolicy(ctx, iccid); err == nil {
+			phone = strings.TrimSpace(policy.CustomPhoneNumber)
+		}
 	}
 
 	title := "eSIM 切卡完成"
@@ -105,15 +112,21 @@ func (s *Server) notifyESIMSwitchResult(configuredID, iccid, carrierName, plmn, 
 		roamDesc += " [" + plmn + "]"
 	}
 
-	text := strings.Join([]string{
+	lines := []string{
 		title,
 		"设备  " + deviceLabel,
 		"卡片  " + cardDesc,
-		"漫游  " + roamDesc,
-		"信号  " + signalStr,
-		"状态  " + statusLine,
-		"时间  " + time.Now().Local().Format("2006-01-02 15:04:05"),
-	}, "\n")
+	}
+	if phone != "" {
+		lines = append(lines, "号码  "+phone)
+	}
+	lines = append(lines,
+		"漫游  "+roamDesc,
+		"信号  "+signalStr,
+		"状态  "+statusLine,
+		"时间  "+time.Now().Local().Format("2006-01-02 15:04:05"),
+	)
+	text := strings.Join(lines, "\n")
 
 	for _, channel := range notificationChannels {
 		setting, err := s.store.NotificationSetting(ctx, channel)
